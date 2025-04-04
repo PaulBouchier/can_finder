@@ -3,12 +3,15 @@
 <package format="3">
   <name>can_finder</name>
   <version>0.0.0</version>
-  <description>TODO: Package description</description>
+  <description>A ROS2 node to find cans in LaserScan data.</description>
   <maintainer email="paul.bouchier@gmail.com">bouchier</maintainer>
   <license>Apache-2.0</license>
 
   <buildtool_depend>ament_cmake</buildtool_depend>
 
+  <depend>rclcpp</depend>
+  <depend>sensor_msgs</depend>
+  <!-- <depend>geometry_msgs</depend> --> <!-- Add if/when Point message is used -->
   <test_depend>ament_lint_auto</test_depend>
   <test_depend>ament_lint_common</test_depend>
 
