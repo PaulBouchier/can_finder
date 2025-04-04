@@ -195,6 +195,11 @@ private:
 
 
             if (!std::isnan(r) && r > MIN_RANGE_FOR_ARC) {
+                // Check if midpoint range is less than start and end ranges
+                float first_range = sequence_ranges.front();
+                float last_range = sequence_ranges.back();
+                bool midpoint_closer = (r < first_range) && (r < last_range);
+
                 // Calculate expected angle range based on can diameter and range 'r'
                 float min_angle = 2.0 * std::atan(CAN_RADIUS_MIN / r);
                 float max_angle = 2.0 * std::atan(CAN_RADIUS_MAX / r);
@@ -204,9 +209,9 @@ private:
                 int min_points_needed = static_cast<int>(std::ceil(min_angle / angle_increment));
                 int max_points_allowed = static_cast<int>(std::floor(max_angle / angle_increment)) +1; // Allow slightly wider angle
 
-
                 // Check if the number of non-NaN points falls within the calculated bounds
-                if (non_nan_count >= min_points_needed && non_nan_count <= max_points_allowed) {
+                // AND check if the midpoint is closer than the ends
+                if (non_nan_count >= min_points_needed && non_nan_count <= max_points_allowed && midpoint_closer) {
                     sequence_is_can = true;
                 }
             }
