@@ -9,7 +9,7 @@ endif()
 find_package(ament_cmake REQUIRED)
 find_package(rclcpp REQUIRED)
 find_package(sensor_msgs REQUIRED)
-# find_package(geometry_msgs REQUIRED) # Add if/when Point message is used
+find_package(geometry_msgs REQUIRED) # Add if/when Point message is used
 
 add_executable(can_finder src/ScanAnalyser.cpp) # Changed source file
 
@@ -17,7 +17,7 @@ target_include_directories(can_finder PUBLIC
   $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>
   $<INSTALL_INTERFACE:include/${PROJECT_NAME}>)
 target_compile_features(can_finder PUBLIC c_std_99 cxx_std_17)  # Require C99 and C++17
-ament_target_dependencies(can_finder rclcpp sensor_msgs) # Added dependencies
+ament_target_dependencies(can_finder rclcpp sensor_msgs geometry_msgs) # Added dependencies
 
 install(TARGETS can_finder
   DESTINATION lib/${PROJECT_NAME})

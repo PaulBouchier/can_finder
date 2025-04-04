@@ -7,6 +7,7 @@
 
 #include "rclcpp/rclcpp.hpp"
 #include "sensor_msgs/msg/laser_scan.hpp"
+#include "geometry_msgs/msg/point_stamped.hpp" // Added for PointStamped message
 
 using std::placeholders::_1;
 
@@ -32,7 +33,13 @@ public:
     // Publisher for the laser scan showing only cans
     can_publisher_ = this->create_publisher<sensor_msgs::msg::LaserScan>("/can_scan", 10);
 
+    // Publisher for the closest can position
+    point_publisher_ = this->create_publisher<geometry_msgs::msg::PointStamped>("/goal_can_pos", 10); // Added publisher
+
     RCLCPP_INFO(this->get_logger(), "ScanAnalyser node started.");
+
+    // Initialize closest can tracking variables
+    closest_can_found_ = false; // Added initialization
   }
 
 private:
@@ -43,6 +50,9 @@ private:
    */
   void scan_callback(const sensor_msgs::msg::LaserScan::SharedPtr msg)
   {
+    // Reset closest can info for this scan
+    closest_can_found_ = false;
+
     // Create messages for publishing
     auto rotated_scan = std::make_unique<sensor_msgs::msg::LaserScan>();
     auto can_only_scan = std::make_unique<sensor_msgs::msg::LaserScan>();
@@ -123,6 +133,38 @@ private:
 
     // Publish the scan containing only cans, rotated back to original orientation
     can_publisher_->publish(std::move(final_can_scan));
+
+    // --- Publish Closest Can Position ---
+    if (closest_can_found_) {
+      // Calculate the original index before rotation
+      size_t original_index;
+      // Need half_size and first_half_size from earlier in the function
+      size_t num_ranges = msg->ranges.size(); // Recalculate or pass as argument if needed
+      size_t half_size = num_ranges / 2;
+      size_t first_half_size = num_ranges - half_size;
+
+      if (closest_can_index_ < half_size) { // Index was in the second half of original scan (now first half of rotated)
+        original_index = closest_can_index_ + first_half_size;
+      } else { // Index was in the first half of original scan (now second half of rotated)
+        original_index = closest_can_index_ - half_size;
+      }
+
+      // Calculate the angle corresponding to the original index
+      double theta_actual = msg->angle_min + original_index * msg->angle_increment;
+
+      // Calculate X and Y coordinates (ROS REP 103: X forward, Y left)
+      double x = closest_can_range_ * std::cos(theta_actual);
+      double y = closest_can_range_ * std::sin(theta_actual);
+
+      // Create and populate the PointStamped message
+      auto point_msg = std::make_unique<geometry_msgs::msg::PointStamped>();
+      point_msg->header.stamp = this->get_clock()->now(); // Use current time or msg->header.stamp
+      point_msg->header.frame_id = msg->header.frame_id; // Use frame_id from input scan
+      point_msg->point.x = x;
+      point_msg->point.y = y;
+      point_msg->point.z = 0.0; // Assuming 2D lidar
+      point_publisher_->publish(std::move(point_msg));
+    }
   }
 
   /**
@@ -147,6 +189,11 @@ private:
     // Initialize can_only_scan ranges to NaN
     std::fill(can_only_scan.ranges.begin(), can_only_scan.ranges.end(), nan_value);
 
+    // Variables to track the closest can found in this scan
+    float min_mid_range = std::numeric_limits<float>::infinity();
+    size_t best_mid_index = 0; // Index in rotated_scan
+    bool found_any_can = false;
+
     // Iterate through the scan points to find potential can sequences
     for (size_t i = 0; i < num_ranges; ) {
       float current_range = rotated_scan.ranges[i];
@@ -157,7 +204,7 @@ private:
         size_t end_index = i;
         int non_nan_count = 1;
         float last_valid_range = current_range;
-        std::vector<float> sequence_ranges; // Store non-NaN ranges for median/average calculation if needed
+        std::vector<float> sequence_ranges; // Store non-NaN ranges for midpoint calculation
         sequence_ranges.push_back(current_range);
 
 
@@ -186,9 +233,9 @@ private:
         // --- Sequence Validation ---
         bool sequence_is_can = false;
         if (non_nan_count >= 2) { // Need at least 2 valid points
-            // Find a representative range 'r' for the sequence (e.g., middle non-NaN value)
+            // Find the range 'r' of the middle non-NaN point in the sequence
             float r = nan_value;
-            size_t middle_seq_index = sequence_ranges.size() / 2;
+            size_t middle_seq_index = sequence_ranges.size() / 2; // Index within sequence_ranges
             if (middle_seq_index < sequence_ranges.size()) {
                 r = sequence_ranges[middle_seq_index];
             }
@@ -213,6 +260,26 @@ private:
                 // AND check if the midpoint is closer than the ends
                 if (non_nan_count >= min_points_needed && non_nan_count <= max_points_allowed && midpoint_closer) {
                     sequence_is_can = true;
+
+                    // --- Check if this is the closest can found so far ---
+                    if (r < min_mid_range) {
+                        min_mid_range = r;
+                        found_any_can = true;
+
+                        // Find the actual index in rotated_scan corresponding to the midpoint range 'r'
+                        // Iterate through the original sequence indices (including NaNs)
+                        // and count non-NaNs until we reach the middle one.
+                        int current_non_nan_count = 0;
+                        for(size_t k = start_index; k <= end_index; ++k) {
+                            if (!std::isnan(rotated_scan.ranges[k])) {
+                                if (current_non_nan_count == static_cast<int>(middle_seq_index)) {
+                                    best_mid_index = k; // Store the index in rotated_scan
+                                    break;
+                                }
+                                current_non_nan_count++;
+                            }
+                        }
+                    }
                 }
             }
         }
@@ -238,6 +305,13 @@ private:
         i++;
       }
     } // End outer loop (scan iteration)
+
+   // After checking all sequences, update the class members if a can was found
+   if (found_any_can) {
+       this->closest_can_found_ = true;
+       this->closest_can_range_ = min_mid_range;
+       this->closest_can_index_ = best_mid_index; // Index relative to rotated_scan
+   }
   }
 
 
@@ -245,6 +319,10 @@ private:
   rclcpp::Subscription<sensor_msgs::msg::LaserScan>::SharedPtr subscription_;
   rclcpp::Publisher<sensor_msgs::msg::LaserScan>::SharedPtr rot_publisher_;
   rclcpp::Publisher<sensor_msgs::msg::LaserScan>::SharedPtr can_publisher_;
+  rclcpp::Publisher<geometry_msgs::msg::PointStamped>::SharedPtr point_publisher_; // Added point publisher
+  bool closest_can_found_;        // Flag if a can was found in the last scan
+  float closest_can_range_;       // Range to the midpoint of the closest can
+  size_t closest_can_index_;      // Index (in rotated_scan) of the midpoint of the closest can
 };
 
 /**
