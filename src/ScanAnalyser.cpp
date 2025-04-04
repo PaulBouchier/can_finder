@@ -90,11 +90,39 @@ private:
     // Find cans in the rotated scan and modify can_only_scan
     findCans(*rotated_scan, *can_only_scan);
 
-    // Publish the rotated scan
+    // Publish the rotated scan (intermediate result)
     rot_publisher_->publish(std::move(rotated_scan));
 
-    // Publish the scan containing only cans
-    can_publisher_->publish(std::move(can_only_scan));
+    // --- Rotate can_only_scan back to original orientation ---
+    auto final_can_scan = std::make_unique<sensor_msgs::msg::LaserScan>();
+
+    // Copy header and metadata from the processed can_only_scan
+    final_can_scan->header = can_only_scan->header; // Use the latest timestamp etc.
+    final_can_scan->angle_min = can_only_scan->angle_min;
+    final_can_scan->angle_max = can_only_scan->angle_max;
+    final_can_scan->angle_increment = can_only_scan->angle_increment;
+    final_can_scan->time_increment = can_only_scan->time_increment;
+    final_can_scan->scan_time = can_only_scan->scan_time;
+    final_can_scan->range_min = can_only_scan->range_min;
+    final_can_scan->range_max = can_only_scan->range_max;
+    final_can_scan->ranges.resize(can_only_scan->ranges.size());
+    final_can_scan->intensities = can_only_scan->intensities; // Copy intensities
+
+    // Perform the inverse rotation if there are ranges
+    if (num_ranges > 0) {
+        // Copy the second half of can_only_scan (originally the first half of msg)
+        // to the beginning of final_can_scan
+        std::copy(can_only_scan->ranges.begin() + half_size, can_only_scan->ranges.end(),
+                  final_can_scan->ranges.begin());
+        // Copy the first half of can_only_scan (originally the second half of msg)
+        // to the end of final_can_scan
+        std::copy(can_only_scan->ranges.begin(), can_only_scan->ranges.begin() + half_size,
+                  final_can_scan->ranges.begin() + first_half_size);
+    }
+    // --- End Rotation Back ---
+
+    // Publish the scan containing only cans, rotated back to original orientation
+    can_publisher_->publish(std::move(final_can_scan));
   }
 
   /**
