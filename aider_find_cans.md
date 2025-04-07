@@ -26,7 +26,7 @@ geometry_msgs/msg/PointStamped
 - add DocStrings;
 - comment the code;
 
-## context
+## Context
 
 ### Previously executed commands
 
@@ -39,7 +39,7 @@ cd ~/ros2_ws
 colcon build --symlink-install
 ```
 
-### beginning context
+### Beginning context
 
 /add src/ScanAnalyser.cpp
 - The diameter of a can is 0.066. 
@@ -154,10 +154,10 @@ Define the class ScanAnalyzer
 2. Rotate the data in the scan message 180 degrees
 
 The data in the scan message represents lidar data from 360 degrees. Cans of interest can
-be directly in front of the scanner, and the lidar data from them can begin at the end of the
+be directly in front of the scanner, and the lidar data from them can begin near the end of the
 message and span the end to the beginning of the message and end near the beginning of
-the message. By rotating the data in the buffer, we ensure that cans directly in front of
-the scanner is contiguous, in the middle of the buffer.
+the message. By rotating the data in the buffer, we ensure that sequences of ranges from
+cans directly in front of the scanner are contiguous, in the middle of the buffer.
 
 ```aider
     In the subscriber callback, rotate the received scan message half the buffer length
