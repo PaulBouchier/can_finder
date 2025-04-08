@@ -36,6 +36,9 @@ public:
     // Publisher for the closest can position
     point_publisher_ = this->create_publisher<geometry_msgs::msg::PointStamped>("/goal_can_pos", 10); // Added publisher
 
+    // Publisher for the original scan (for comparison/debugging)
+    scan_publisher_ = this->create_publisher<sensor_msgs::msg::LaserScan>("/scan", 10);
+
     RCLCPP_INFO(this->get_logger(), "ScanAnalyser node started.");
 
     // Initialize closest can tracking variables
@@ -50,6 +53,9 @@ private:
    */
   void scan_callback(const sensor_msgs::msg::LaserScan::SharedPtr msg)
   {
+    // Publish the original incoming scan
+    scan_publisher_->publish(*msg);
+
     // Reset closest can info for this scan
     closest_can_found_ = false;
 
@@ -320,6 +326,7 @@ private:
   rclcpp::Publisher<sensor_msgs::msg::LaserScan>::SharedPtr rot_publisher_;
   rclcpp::Publisher<sensor_msgs::msg::LaserScan>::SharedPtr can_publisher_;
   rclcpp::Publisher<geometry_msgs::msg::PointStamped>::SharedPtr point_publisher_; // Added point publisher
+  rclcpp::Publisher<sensor_msgs::msg::LaserScan>::SharedPtr scan_publisher_; // Publisher for original scan
   bool closest_can_found_;        // Flag if a can was found in the last scan
   float closest_can_range_;       // Range to the midpoint of the closest can
   size_t closest_can_index_;      // Index (in rotated_scan) of the midpoint of the closest can
