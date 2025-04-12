@@ -24,7 +24,7 @@ target_compile_features(can_finder PUBLIC cxx_std_17) # Require C++17
 install(TARGETS can_finder
   DESTINATION lib/${PROJECT_NAME})
 
-ament_install_python_package() # Add this if you have Python scripts, keep for good practice
+# ament_install_python_package() # Add this if you have Python scripts, keep for good practice
 
 if(BUILD_TESTING)
   find_package(ament_lint_auto REQUIRED)
