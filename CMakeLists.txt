@@ -7,18 +7,24 @@ endif()
 
 # find dependencies
 find_package(ament_cmake REQUIRED)
-# uncomment the following section in order to fill in
-# further dependencies manually.
-# find_package(<dependency> REQUIRED)
+find_package(rclcpp REQUIRED)
+find_package(sensor_msgs REQUIRED)
+find_package(geometry_msgs REQUIRED)
+find_package(example_interfaces REQUIRED)
 
-add_executable(can_finder src/can_finder.cpp)
+add_executable(can_finder src/CanFinder.cpp) # Corrected filename
+ament_target_dependencies(can_finder rclcpp sensor_msgs geometry_msgs example_interfaces) # Add dependencies
+
 target_include_directories(can_finder PUBLIC
   $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>
-  $<INSTALL_INTERFACE:include/${PROJECT_NAME}>)
-target_compile_features(can_finder PUBLIC c_std_99 cxx_std_17)  # Require C99 and C++17
+  $<INSTALL_INTERFACE:include>) # Corrected install interface path
+
+target_compile_features(can_finder PUBLIC cxx_std_17) # Require C++17
 
 install(TARGETS can_finder
   DESTINATION lib/${PROJECT_NAME})
+
+ament_install_python_package() # Add this if you have Python scripts, keep for good practice
 
 if(BUILD_TESTING)
   find_package(ament_lint_auto REQUIRED)
