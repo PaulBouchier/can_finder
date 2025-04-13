@@ -170,6 +170,13 @@ public:
         // Use only _1 and _2 placeholders
         std::bind(&CanFinder::blankFwdSectorCb, this, _1, _2));
 
+    // Initialize TF2 buffer and listener
+    tf_buffer_ = std::make_shared<tf2_ros::Buffer>(this->get_clock());
+    tf_listener_ = std::make_shared<tf2_ros::TransformListener>(*tf_buffer_);
+
+    // Instantiate the CanPoseTransformer
+    can_pose_transformer_ = std::make_unique<CanPoseTransformer>(this, tf_buffer_);
+
     RCLCPP_INFO(this->get_logger(), "CanFinder node initialized.");
   }
 
