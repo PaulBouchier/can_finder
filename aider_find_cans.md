@@ -167,6 +167,28 @@ int main(int argc, char ** argv)
 }
 ```
 
+### Reference: Transform listener code
+
+```cpp
+#include "tf2_ros/transform_listener.h"
+
+auto tf_buffer = std::make_shared<tf2_ros::Buffer>(node.get_clock());
+auto tf_listener = std::make_shared<tf2_ros::TransformListener>(*tf_buffer);
+
+void transform(geometry_msgs::msg::PointStamped & in_out)
+{
+geometry_msgs::msg::PointStamped in, out;
+
+in.poses = in_out.poses;
+geometry_msgs::msg::TransformStamped transform =
+   tf_buffer->lookupTransform("map",
+                              in.header.frame_id,
+                              tf2::TimePointZero);
+
+tf2::doTransform(in, out, transform);
+}
+```
+
 ## Low-level tasks
 
 These tasks are ordered from start to finish
@@ -209,6 +231,9 @@ These tasks are ordered from start to finish
     - Call 'rotateScan' and pass it 'canScanRot' as input and a reference to a new
         sensor_msgs/msg/LaserScan message called 'canScan' which is its output
     - Publish 'canScan' to the '/can_scan' topic
+    - Call the 'transformCanPoses' method defined below, passing a reference to the foundCans
+    message. 'transformCanPoses' will modify each can pose by transforming it from the
+    laser frame to the map frame.
     - Publish the foundCans message to the '/can_positions' topic
 ```
 
@@ -271,7 +296,19 @@ These tasks are ordered from start to finish
         - fill position.z and the orientation fields with 0.0
 ```
 
-6. Update build files
+
+6. 'transformCanPoses' method definition
+
+Convert found_cans pose array from laser frame to map frame.
+
+```aider
+  - Change the frame_id of the PoseArray message to 'map'
+  - Transform each pose in the PoseArray message to the map frame as shown in the
+  Reference Transform Listener code example and overwrite the input pose with the transformed
+  pose.
+```
+
+7. Update build files
 
 ```aider
 /add CMakeLists.txt

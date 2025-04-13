@@ -99,7 +99,6 @@ public:
 
       try {
         // Use tf2::TimePointZero for latest available transform
-        // Use a timeout to wait for the transform if necessary (e.g., 0.1 seconds)
         pose_stamped_out = tf_buffer_->transform(pose_stamped_in, target_frame, tf2::durationFromSec(0.1));
         // Update the pose in the array with the transformed one
         pose = pose_stamped_out.pose;
