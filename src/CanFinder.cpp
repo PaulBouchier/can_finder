@@ -99,7 +99,11 @@ public:
 
       try {
         // Use tf2::TimePointZero for latest available transform
-        pose_stamped_out = tf_buffer_->transform(pose_stamped_in, target_frame, tf2::durationFromSec(0.1));
+        geometry_msgs::msg::TransformStamped transform = tf_buffer_->lookupTransform(target_frame,
+                                   pose_stamped_in.header.frame_id, tf2::TimePointZero);
+     
+        tf2::doTransform(pose_stamped_in, pose_stamped_out, transform);
+
         // Update the pose in the array with the transformed one
         pose = pose_stamped_out.pose;
       } catch (const tf2::TransformException & ex) {
