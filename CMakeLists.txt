@@ -11,9 +11,19 @@ find_package(rclcpp REQUIRED)
 find_package(sensor_msgs REQUIRED)
 find_package(geometry_msgs REQUIRED)
 find_package(example_interfaces REQUIRED)
+find_package(tf2 REQUIRED)
+find_package(tf2_ros REQUIRED)
+find_package(tf2_geometry_msgs REQUIRED)
 
 add_executable(can_finder src/CanFinder.cpp) # Corrected filename
-ament_target_dependencies(can_finder rclcpp sensor_msgs geometry_msgs example_interfaces) # Add dependencies
+ament_target_dependencies(can_finder
+  rclcpp
+  sensor_msgs
+  geometry_msgs
+  example_interfaces
+  tf2_ros             # Add this
+  tf2_geometry_msgs   # Add this
+) # Add dependencies
 
 target_include_directories(can_finder PUBLIC
   $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>
