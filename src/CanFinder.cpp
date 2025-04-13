@@ -504,7 +504,6 @@ private:
       // --- Find midpoint range and index, counting valid points ---
       size_t valid_points_count = 0;
       size_t first_valid_idx = end_idx + 1; // Initialize to invalid
-      size_t last_valid_idx = start_idx;    // Initialize to invalid
       float first_valid_range = std::numeric_limits<float>::quiet_NaN();
       float last_valid_range = std::numeric_limits<float>::quiet_NaN();
       std::vector<std::pair<float, size_t>> valid_points_in_seq; // Store {range, index}
@@ -518,7 +517,6 @@ private:
                   first_valid_idx = i;
                   first_valid_range = r;
               }
-              last_valid_idx = i; // Update last valid point seen
               last_valid_range = r;
           }
       }
