@@ -10,6 +10,12 @@
 #include "geometry_msgs/msg/pose_array.hpp"
 #include "geometry_msgs/msg/pose.hpp"
 #include "example_interfaces/srv/set_bool.hpp" // Service type
+#include "tf2_ros/buffer.h"
+#include "tf2_ros/transform_listener.h"
+#include "tf2_geometry_msgs/tf2_geometry_msgs.hpp" // For geometry_msgs transforms
+#include "geometry_msgs/msg/pose_stamped.hpp"     // For PoseStamped
+#include "tf2/exceptions.h"                       // For transform exceptions
+#include <string>                                  // For std::string
 
 // Use placeholders for std::bind
 using std::placeholders::_1;
@@ -35,6 +41,91 @@ struct CanSequence {
     bool operator<(const CanSequence& other) const {
         return mid_range < other.mid_range;
     }
+};
+
+
+/**
+ * @brief Transforms can poses into a target frame using TF2.
+ */
+class CanPoseTransformer
+{
+public:
+  /**
+   * @brief Construct a new Can Pose Transformer object.
+   * @param node A pointer to the parent node for logging.
+   * @param tf_buffer A shared pointer to the TF2 buffer.
+   */
+  CanPoseTransformer(rclcpp::Node* node, std::shared_ptr<tf2_ros::Buffer> tf_buffer)
+    : node_(node), tf_buffer_(tf_buffer)
+  {
+    if (!node_) {
+      throw std::invalid_argument("Node pointer cannot be null in CanPoseTransformer constructor");
+    }
+    if (!tf_buffer_) {
+      throw std::invalid_argument("TF buffer pointer cannot be null in CanPoseTransformer constructor");
+    }
+    RCLCPP_INFO(node_->get_logger(), "CanPoseTransformer initialized.");
+  }
+
+  /**
+   * @brief Transforms the poses within a PoseArray message to the target frame.
+   * Modifies the input PoseArray message in place.
+   * @param poses The PoseArray message containing poses to transform.
+   * @param target_frame The desired target frame ID (e.g., "map").
+   */
+  void transformPoses(geometry_msgs::msg::PoseArray& poses, const std::string& target_frame)
+  {
+    if (poses.poses.empty()) {
+      // No poses to transform, just update header if needed (though unlikely needed if empty)
+      // poses.header.frame_id = target_frame; // Optional: update frame even if empty
+      return;
+    }
+
+    const std::string source_frame = poses.header.frame_id;
+    if (source_frame.empty()) {
+        RCLCPP_ERROR(node_->get_logger(), "Cannot transform poses: Source frame ID is empty.");
+        return;
+    }
+    if (source_frame == target_frame) {
+        RCLCPP_DEBUG(node_->get_logger(), "Source and target frames are the same ('%s'), skipping transformation.", target_frame.c_str());
+        return;
+    }
+
+    geometry_msgs::msg::PoseStamped pose_stamped_in, pose_stamped_out;
+    pose_stamped_in.header = poses.header; // Use header from PoseArray
+
+    for (auto& pose : poses.poses) {
+      pose_stamped_in.pose = pose; // Set the current pose
+
+      try {
+        // Use tf2::TimePointZero for latest available transform
+        // Use a timeout to wait for the transform if necessary (e.g., 0.1 seconds)
+        pose_stamped_out = tf_buffer_->transform(pose_stamped_in, target_frame, tf2::durationFromSec(0.1));
+        // Update the pose in the array with the transformed one
+        pose = pose_stamped_out.pose;
+      } catch (const tf2::TransformException & ex) {
+        RCLCPP_ERROR(node_->get_logger(), "Could not transform pose from %s to %s: %s",
+                     source_frame.c_str(), target_frame.c_str(), ex.what());
+        // Decide how to handle failed transforms. Options:
+        // 1. Skip this pose (leave it untransformed - might be confusing)
+        // 2. Remove this pose from the array (requires careful index handling or post-processing)
+        // 3. Clear the whole array and return (simplest if any failure is critical)
+
+        // For now, let's log the error and leave the pose untransformed in the array.
+        // Consider adding logic to remove failed poses if required.
+        continue; // Move to the next pose
+      }
+    }
+
+    // Update the header frame_id to the target frame AFTER transforming all poses
+    poses.header.frame_id = target_frame;
+    // Timestamp is usually kept from the original message or updated just before publishing
+    // poses.header.stamp = node_->get_clock()->now(); // Optional: update stamp here too
+  }
+
+private:
+  rclcpp::Node* node_; // Pointer to the parent node for logging
+  std::shared_ptr<tf2_ros::Buffer> tf_buffer_;
 };
 
 /**
@@ -121,10 +212,20 @@ private:
     can_scan_publisher_->publish(canScan);
 
     // 6. Publish the positions of the found cans
-    // Ensure the header timestamp is current
+    // 6a. Transform can poses to the "map" frame
+    if (can_pose_transformer_) { // Check if transformer was initialized successfully
+        can_pose_transformer_->transformPoses(foundCans, "map");
+        // The transformPoses method updates foundCans.header.frame_id internally
+    } else {
+        RCLCPP_WARN(this->get_logger(), "CanPoseTransformer not initialized. Cannot transform poses.");
+        // Keep original frame_id if transformer failed
+        foundCans.header.frame_id = msg->header.frame_id;
+    }
+
+    // 6b. Publish the (potentially transformed) positions of the found cans
+    // Ensure the header timestamp is current (transformPoses might not update it)
     foundCans.header.stamp = this->get_clock()->now();
-    // Ensure frame_id matches the input scan
-    foundCans.header.frame_id = msg->header.frame_id;
+    // Frame ID is now set by transformPoses or kept original if transform failed
     can_positions_publisher_->publish(foundCans);
   }
 
@@ -473,6 +574,11 @@ private:
   rclcpp::Publisher<PoseArray>::SharedPtr can_positions_publisher_;
   rclcpp::Service<SetBool>::SharedPtr blank_fwd_sector_service_;
   bool blankFwdSector_; // Flag to control blanking (note the underscore)
+
+  // TF2 related members
+  std::shared_ptr<tf2_ros::Buffer> tf_buffer_;
+  std::shared_ptr<tf2_ros::TransformListener> tf_listener_{nullptr};
+  std::unique_ptr<CanPoseTransformer> can_pose_transformer_; // Use unique_ptr
 };
 
 /**
