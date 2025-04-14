@@ -399,13 +399,18 @@ private:
                 // However, the findCans operates on the *rotated* scan. The angle calculation
                 // should be relative to the *rotated* scan's frame.
                 // Let's calculate angle relative to the rotated scan's start (which is physically 180 deg).
+                // Calculate angle relative to the start of the rotated scan data
                 double angle_in_rotated_frame = rotated_scan.angle_min + seq.mid_idx * rotated_scan.angle_increment;
+                // Convert angle to the original laser frame (X forward) by adding PI
+                double angle_in_original_frame = angle_in_rotated_frame + M_PI;
+                // Normalize angle to [-PI, PI] range (optional, but good practice)
+                angle_in_original_frame = atan2(sin(angle_in_original_frame), cos(angle_in_original_frame));
 
-                // Calculate X and Y in the *rotated* laser frame
-                // X forward, Y left
+
+                // Calculate X and Y in the *original* laser frame (X forward, Y left)
                 geometry_msgs::msg::Pose pose;
-                pose.position.x = seq.mid_range * cos(angle_in_rotated_frame);
-                pose.position.y = seq.mid_range * sin(angle_in_rotated_frame);
+                pose.position.x = seq.mid_range * cos(angle_in_original_frame);
+                pose.position.y = seq.mid_range * sin(angle_in_original_frame);
                 pose.position.z = 0.0;
                 // Orientation: identity quaternion (no rotation relative to laser frame)
                 pose.orientation.x = 0.0;
@@ -415,14 +420,20 @@ private:
                 found_cans.poses.push_back(pose);
             }
 
-            // Publish range and bearing for the closest can (using the angle in the rotated frame)
+            // Publish range and bearing for the closest can (using the angle relative to the original frame)
             const auto& closest_can = valid_sequences[0];
+            // Calculate angle relative to the start of the rotated scan data
             double closest_angle_in_rotated_frame = rotated_scan.angle_min + closest_can.mid_idx * rotated_scan.angle_increment;
+            // Convert angle to the original laser frame (X forward) by adding PI
+            double closest_angle_in_original_frame = closest_angle_in_rotated_frame + M_PI;
+            // Normalize angle to [-PI, PI] range (optional, but good practice)
+            closest_angle_in_original_frame = atan2(sin(closest_angle_in_original_frame), cos(closest_angle_in_original_frame));
+
 
             geometry_msgs::msg::Point range_bearing;
-            range_bearing.x = closest_can.mid_range;         // Range
-            range_bearing.y = closest_angle_in_rotated_frame; // Bearing (angle in rotated frame)
-            range_bearing.z = 0.0;                            // Not used
+            range_bearing.x = closest_can.mid_range;            // Range
+            range_bearing.y = closest_angle_in_original_frame;  // Bearing (angle in original frame)
+            range_bearing.z = 0.0;                              // Not used
             closest_can_pub_->publish(range_bearing);
         }
     }
