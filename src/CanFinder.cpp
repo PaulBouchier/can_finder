@@ -14,6 +14,7 @@
 #include "tf2_ros/transform_listener.h"
 #include "tf2_geometry_msgs/tf2_geometry_msgs.hpp" // For geometry_msgs transforms
 #include "geometry_msgs/msg/pose_stamped.hpp"     // For PoseStamped
+#include "geometry_msgs/msg/point.hpp"            // For Point message
 #include "tf2/exceptions.h"                       // For transform exceptions
 #include <string>                                  // For std::string
 
@@ -205,12 +206,15 @@ private:
 
     // 2. Rotate scan data for easier processing
     LaserScan rotatedScan;
-    rotateScan(current_scan, rotatedScan); // Use the (potentially modified) copy
+    // Pass the mutable copy, remove const from current_scan if rotateScan needs non-const (it does now)
+    rotateScan(current_scan, rotatedScan);
 
     // 3. Find cans in the rotated scan
     LaserScan canScanRot;
     PoseArray foundCans;
-    findCans(rotatedScan, canScanRot, foundCans); // Pass rotatedScan
+    std::vector<CanSequence> potential_cans; // Declare vector here
+    // Pass rotatedScan (non-const) and potential_cans
+    findCans(rotatedScan, canScanRot, foundCans, potential_cans);
 
     // 4. Rotate the can-only scan back to the original orientation
     LaserScan canScan;
@@ -220,6 +224,30 @@ private:
     // Ensure the header timestamp is current
     canScan.header.stamp = this->get_clock()->now();
     can_scan_publisher_->publish(canScan);
+
+    // 5b. Publish range and bearing of the closest can (if any)
+    if (!potential_cans.empty()) { // Check if any potential cans were found and validated
+        // The closest can is the first one after sorting by range
+        const auto& closest_can = potential_cans[0];
+        float closest_range = closest_can.mid_range;
+        size_t closest_mid_index = closest_can.mid_index;
+        // Use angle_increment from the scan passed *into* findCans
+        float angle_increment = rotatedScan.angle_increment;
+
+        // Calculate bearing relative to the original lidar forward direction (X-axis)
+        // The angle calculation in findCans already accounts for the rotation:
+        // theta = (mid_index * angle_increment) + PI is the angle in the original frame.
+        double bearing = (static_cast<double>(closest_mid_index) * angle_increment) + PI;
+        // Normalize bearing to [-pi, pi]
+        bearing = atan2(sin(bearing), cos(bearing));
+
+        Point closest_point_msg;
+        closest_point_msg.x = static_cast<double>(closest_range); // Range
+        closest_point_msg.y = 0.0; // Not used, set to 0
+        closest_point_msg.z = bearing; // Bearing (angle)
+
+        closest_can_publisher_->publish(closest_point_msg);
+    }
 
     // 6. Publish the positions of the found cans
     // 6a. Transform can poses to the "map" frame
@@ -303,7 +331,7 @@ private:
    * @param scan_in The original LaserScan message.
    * @param scan_out The LaserScan message to store the rotated data.
    */
-  void rotateScan(const LaserScan & scan_in, LaserScan & scan_out) // Remove const
+  void rotateScan(LaserScan & scan_in, LaserScan & scan_out) // Remove const from scan_in
   {
       // Copy metadata - important: keep original angle min/max/increment
       scan_out.header = scan_in.header; // Copy header (timestamp, frame_id)
@@ -364,8 +392,9 @@ private:
    * @param scan_in The (rotated) LaserScan message to analyze.
    * @param can_scan_out The LaserScan message containing only points identified as cans.
    * @param found_cans_out The PoseArray message to store the calculated positions of found cans.
+   * @param potential_cans_out Output vector to store validated CanSequence objects.
    */
-  void findCans(const LaserScan & scan_in, LaserScan & can_scan_out, PoseArray & found_cans_out) // Remove const
+  void findCans(LaserScan & scan_in, LaserScan & can_scan_out, PoseArray & found_cans_out, std::vector<CanSequence>& potential_cans_out) // Remove const, add potential_cans_out
   {
       // Initialize output scan by copying input metadata
       can_scan_out = scan_in; // Copies header, angle info, etc.
@@ -379,6 +408,7 @@ private:
       // Initialize PoseArray header (frame_id and stamp set in scanCb)
       found_cans_out.header = scan_in.header;
       found_cans_out.poses.clear(); // Ensure it's empty
+      potential_cans_out.clear(); // Clear output vector
 
       size_t num_ranges = scan_in.ranges.size();
       // Need at least 2 points for range diff check, maybe 3 for midpoint check logic.
@@ -498,10 +528,10 @@ private:
    * @param potential_cans The vector to add the validated sequence to.
    */
   void validateAndAddSequence(
-      const LaserScan& scan,
+      LaserScan& scan, // Remove const from scan
       size_t start_idx,
       size_t end_idx,
-      std::vector<CanSequence>& potential_cans) // Remove const
+      std::vector<CanSequence>& potential_cans)
   {
       if (end_idx < start_idx) return; // Invalid indices
 
@@ -580,6 +610,7 @@ private:
   rclcpp::Publisher<LaserScan>::SharedPtr scan_publisher_;
   rclcpp::Publisher<LaserScan>::SharedPtr can_scan_publisher_;
   rclcpp::Publisher<PoseArray>::SharedPtr can_positions_publisher_;
+  rclcpp::Publisher<Point>::SharedPtr closest_can_publisher_; // Publisher for closest can range/bearing
   rclcpp::Service<SetBool>::SharedPtr blank_fwd_sector_service_;
   bool blankFwdSector_; // Flag to control blanking (note the underscore)
 
