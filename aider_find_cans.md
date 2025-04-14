@@ -167,28 +167,6 @@ int main(int argc, char ** argv)
 }
 ```
 
-### Reference: Transform listener code
-
-```cpp
-#include "tf2_ros/transform_listener.h"
-
-auto tf_buffer = std::make_shared<tf2_ros::Buffer>(node.get_clock());
-auto tf_listener = std::make_shared<tf2_ros::TransformListener>(*tf_buffer);
-
-void transform(geometry_msgs::msg::PointStamped & in_out)
-{
-geometry_msgs::msg::PointStamped in, out;
-
-in.poses = in_out.poses;
-geometry_msgs::msg::TransformStamped transform =
-   tf_buffer->lookupTransform("map",
-                              in.header.frame_id,
-                              tf2::TimePointZero);
-
-tf2::doTransform(in, out, transform);
-}
-```
-
 ## Low-level tasks
 
 These tasks are ordered from start to finish
