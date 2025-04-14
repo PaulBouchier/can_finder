@@ -185,6 +185,8 @@ These tasks are ordered from start to finish
       It will publish to the topic '/can_scan' with message type sensor_msgs/msg/LaserScan
     - MIRROR the provided Minimal Publisher code to add a publisher to the CanFinder class.
       It will publish to the topic '/can_positions' with message type geometry_msgs/msg/PoseArray
+    - MIRROR the provided Minimal Publisher code to add a publisher to the CanFinder class.
+      It will publish to the topic '/closest_range_bearing' with message type geometry_msgs/msg/Point
     - Add the private boolean variable 'blankFwdSector'
     - MIRROR the provided Minimal Service Server code to add a service server to the CanFinder class.
       It will provide the service '/blank_fwd_sector' with type 'example_interfaces/srv/SetBool'
@@ -272,6 +274,10 @@ These tasks are ordered from start to finish
         - position.y = (range * sin(theta))
         - position.x = (range * cos(theta))
         - fill position.z and the orientation fields with 0.0
+  - For the closest sequence only, populate a geometry_msgs/msg/Point message called 'range_bearing' as follows:
+    - x = midpoint range
+    - y = theta
+  - Publish the 'range_bearing' message to the '/closest_range_bearing' topic 
 ```
 
 
