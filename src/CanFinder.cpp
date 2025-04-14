@@ -237,16 +237,16 @@ private:
         // Calculate bearing relative to the original lidar forward direction (X-axis)
         // The angle calculation in findCans already accounts for the rotation:
         // theta = (mid_index * angle_increment) + PI is the angle in the original frame.
-        double bearing = (static_cast<double>(closest_mid_index) * angle_increment) + PI;
-        // Normalize bearing to [-pi, pi]
-        bearing = atan2(sin(bearing), cos(bearing));
+        double theta = (static_cast<double>(closest_mid_index) * angle_increment) + PI;
+        // Normalize bearing (theta) to [-pi, pi]
+        theta = atan2(sin(theta), cos(theta));
 
-        Point closest_point_msg;
-        closest_point_msg.x = static_cast<double>(closest_range); // Range
-        closest_point_msg.y = 0.0; // Not used, set to 0
-        closest_point_msg.z = bearing; // Bearing (angle)
+        Point range_bearing; // Renamed from closest_point_msg
+        range_bearing.x = static_cast<double>(closest_range); // Range
+        range_bearing.y = theta; // Bearing (angle)
+        range_bearing.z = 0.0; // Set z to 0.0 as per request
 
-        closest_can_publisher_->publish(closest_point_msg);
+        closest_can_publisher_->publish(range_bearing); // Publish the message
     }
 
     // 6. Publish the positions of the found cans
