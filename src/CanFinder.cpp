@@ -168,6 +168,9 @@ public:
     // Publisher for the positions of detected cans
     can_positions_publisher_ = this->create_publisher<PoseArray>("/can_positions", 10);
 
+    // Publisher for the range and bearing of the closest can
+    closest_can_publisher_ = this->create_publisher<Point>("/closest_range_bearing", 10);
+
     // Service server to control blanking the forward sector
     blank_fwd_sector_service_ = this->create_service<SetBool>(
         "/blank_fwd_sector",
