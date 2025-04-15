@@ -476,7 +476,7 @@ private:
                 found_cans.poses.push_back(stamped_out.pose); // Add transformed pose
 
             } catch (const tf2::TransformException & ex) {
-                RCLCPP_WARN(this->get_logger(), "Could not transform %s to %s: %s. Skipping pose.",
+                RCLCPP_WARN_THROTTLE(this->get_logger(), *this->get_clock(), 10000, "Could not transform %s to %s: %s. Skipping pose.",
                              source_frame.c_str(), target_frame.c_str(), ex.what());
                 // Optionally, decide whether to skip this pose or stop processing
             }
@@ -487,7 +487,7 @@ private:
         found_cans.header.frame_id = target_frame; // Set frame_id to map regardless of partial success
 
         if (found_cans.poses.empty() && !original_poses.empty()) {
-             RCLCPP_WARN(this->get_logger(), "All can pose transformations failed. Output PoseArray is empty.");
+             RCLCPP_WARN_THROTTLE(this->get_logger(), *this->get_clock(), 10000, "All can pose transformations failed. Output PoseArray is empty.");
         }
     }
 
