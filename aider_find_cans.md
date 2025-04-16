@@ -171,6 +171,40 @@ int main(int argc, char ** argv)
   return 0;
 }
 ```
+### Reference: Minimal transformer code
+
+```cpp
+class TransformerNode : public rclcpp::Node
+{
+public:
+    /**
+     * @brief Construct a new TransformerNode object
+     */
+    TransformerNode()
+        : Node("transformer_node") 
+    {
+        // Initialize TF2 buffer and listener
+        tf_buffer_ = std::make_shared<tf2_ros::Buffer>(this->get_clock());
+        tf_listener_ = std::make_shared<tf2_ros::TransformListener>(*tf_buffer_);
+    }
+
+    void transformCanPoses(geometry_msgs::msg::PoseArray& found_cans)
+    {
+      std::string target_frame = "map";
+      std::string source_frame = found_cans.header.frame_id; // Should be laser frame_id
+      try {
+            // Use the timestamp from the original scan header for the transform lookup
+            // Add a timeout to wait for the transform to become available.
+            stamped_out = tf_buffer_->transform(stamped_in, target_frame, 100ms); // Wait up to 100ms
+            found_cans.poses.push_back(stamped_out.pose); // Add transformed pose
+
+        } catch (const tf2::TransformException & ex) {
+            RCLCPP_WARN_THROTTLE(this->get_logger(), *this->get_clock(), 10000, "Could not transform %s to %s: %s. Skipping pose.",
+                          source_frame.c_str(), target_frame.c_str(), ex.what());
+            // Optionally, decide whether to skip this pose or stop processing
+        }
+    }
+```
 
 ## Low-level tasks
 
