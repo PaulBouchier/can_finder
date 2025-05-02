@@ -1,7 +1,7 @@
-# ROS2 Jazzy Node: Find cans in lidar scandata
+# Find cans in lidar scandata
 
 Ingest the information from this file, implement the low-level tasks, and generate
-the code that will satisfy the high and mid-level objectives
+the code for a ROS2 Jazzy node that will satisfy the high and mid-level objectives
 
 ## High-level Objective
 
@@ -226,6 +226,8 @@ These tasks are ordered from start to finish
       It will publish to the topic '/can_positions' with message type geometry_msgs/msg/PoseArray
     - MIRROR the provided Minimal Publisher code to add a publisher to the CanFinder class.
       It will publish to the topic '/closest_range_bearing' with message type geometry_msgs/msg/Point
+    - MIRROR the provided Minimal Publisher code to add a publisher that will publish to
+      the topic '/can_detected' with message type 'example_interfaces/msg/Bool'
     - Add the private boolean variable 'blankFwdSector'
     - MIRROR the provided Minimal Service Server code to add a service server to the CanFinder class.
       It will provide the service '/blank_fwd_sector' with type 'example_interfaces/srv/SetBool'
@@ -254,6 +256,7 @@ These tasks are ordered from start to finish
     message. 'transformCanPoses' will modify each can pose by transforming it from the
     laser frame to the map frame.
     - Publish the foundCans message to the '/can_positions' topic
+    - If the foundCans message is empty publish False to '/can_detected', otherwise publish True
 ```
 
 3. 'blankCapturedCan' method definition
