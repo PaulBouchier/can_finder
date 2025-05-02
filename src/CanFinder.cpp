@@ -13,6 +13,7 @@
 #include "geometry_msgs/msg/point.hpp"
 #include "geometry_msgs/msg/pose_stamped.hpp" // For transform
 #include "example_interfaces/srv/set_bool.hpp"
+#include "example_interfaces/msg/bool.hpp" // For Bool message
 #include "tf2_ros/buffer.h"
 #include "tf2_ros/transform_listener.h"
 #include "tf2_geometry_msgs/tf2_geometry_msgs.hpp" // For tf2::doTransform
@@ -64,6 +65,9 @@ public:
         // Publisher for the range and bearing of the closest can (in laser frame)
         closest_can_pub_ = this->create_publisher<geometry_msgs::msg::Point>("/closest_range_bearing", 10);
 
+        // Publisher for can detection status
+        can_detected_pub_ = this->create_publisher<example_interfaces::msg::Bool>("/can_detected", 10);
+
         // Service server to control forward sector blanking
         blank_fwd_sector_srv_ = this->create_service<example_interfaces::srv::SetBool>(
             "/blank_fwd_sector", std::bind(&CanFinder::blankFwdSectorCb, this, _1, _2));
@@ -97,6 +101,11 @@ private:
         sensor_msgs::msg::LaserScan canScanRot; // Scan containing only can points (still rotated)
         geometry_msgs::msg::PoseArray foundCans; // Poses of found cans (in laser frame, relative to rotated scan origin)
         findCans(rotatedScan, canScanRot, foundCans);
+
+        // Publish whether any cans were detected in the laser frame
+        example_interfaces::msg::Bool can_detected_msg;
+        can_detected_msg.data = !foundCans.poses.empty(); // Check if findCans found anything
+        can_detected_pub_->publish(can_detected_msg);
 
         // Rotate the can-only scan back to the original orientation
         sensor_msgs::msg::LaserScan canScan;
@@ -497,6 +506,7 @@ private:
     rclcpp::Publisher<sensor_msgs::msg::LaserScan>::SharedPtr can_scan_pub_;
     rclcpp::Publisher<geometry_msgs::msg::PoseArray>::SharedPtr can_positions_pub_;
     rclcpp::Publisher<geometry_msgs::msg::Point>::SharedPtr closest_can_pub_;
+    rclcpp::Publisher<example_interfaces::msg::Bool>::SharedPtr can_detected_pub_;
     rclcpp::Service<example_interfaces::srv::SetBool>::SharedPtr blank_fwd_sector_srv_;
 
     // TF2 Listener
