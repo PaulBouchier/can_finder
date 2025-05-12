@@ -449,7 +449,7 @@ private:
 
 
     /**
-     * @brief Transforms the poses in a PoseArray from their original frame (laser) to the map frame.
+     * @brief Transforms the poses in a PoseArray from their original frame (laser) to the odom frame.
      * Modifies the input PoseArray in place.
      * @param found_cans The PoseArray message containing poses in the laser frame. Header must be set correctly.
      */
@@ -459,7 +459,7 @@ private:
             return; // Nothing to transform
         }
 
-        std::string target_frame = "map";
+        std::string target_frame = "odom";
         std::string source_frame = found_cans.header.frame_id; // Should be laser frame_id
 
         if (source_frame.empty()) {
@@ -481,7 +481,7 @@ private:
             try {
                 // Use the timestamp from the original scan header for the transform lookup
                 // Add a timeout to wait for the transform to become available.
-                stamped_out = tf_buffer_->transform(stamped_in, target_frame, 100ms); // Wait up to 100ms
+                stamped_out = tf_buffer_->transform(stamped_in, target_frame, 200ms); // Wait up to 200ms
                 found_cans.poses.push_back(stamped_out.pose); // Add transformed pose
 
             } catch (const tf2::TransformException & ex) {

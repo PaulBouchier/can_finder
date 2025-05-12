@@ -328,7 +328,7 @@ These tasks are ordered from start to finish
 Convert found_cans pose array from laser frame to map frame.
 
 ```aider
-  - Change the frame_id of the PoseArray message to 'map'
+  - Change the frame_id of the PoseArray message to 'odom'
   - Transform each pose in the PoseArray message to the map frame as shown in the
   Reference Transform Listener code example and overwrite the input pose with the transformed
   pose.
