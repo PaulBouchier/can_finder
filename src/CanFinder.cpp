@@ -117,10 +117,9 @@ private:
         // Transform the found can poses from the laser frame to the map frame
         transformCanPoses(foundCans); // Modifies foundCans in place
 
-        // Publish the transformed can positions only if cans were found and transformed
-        if (!foundCans.poses.empty()) {
-             can_positions_pub_->publish(foundCans);
-        }
+        // Publish the transformed can positions or an empty array if none were found
+        // If no cans were found, the poses array will be empty
+        can_positions_pub_->publish(foundCans);
     }
 
     /**
