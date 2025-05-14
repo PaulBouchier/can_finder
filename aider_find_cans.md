@@ -332,6 +332,7 @@ Convert found_cans pose array from laser frame to map frame.
   - Transform each pose in the PoseArray message to the map frame as shown in the
   Reference Transform Listener code example and overwrite the input pose with the transformed
   pose.
+  - If no cans were found, overwrite the input pose frame with 'odom' and return the pose array empty
 ```
 
 7. Update build files

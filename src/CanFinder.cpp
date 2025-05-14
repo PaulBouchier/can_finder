@@ -454,11 +454,13 @@ private:
      */
     void transformCanPoses(geometry_msgs::msg::PoseArray& found_cans)
     {
+        std::string target_frame = "odom";
+        found_cans.header.frame_id = target_frame; // Set the target frame for the output
+
         if (found_cans.poses.empty()) {
             return; // Nothing to transform
         }
 
-        std::string target_frame = "odom";
         std::string source_frame = found_cans.header.frame_id; // Should be laser frame_id
 
         if (source_frame.empty()) {
